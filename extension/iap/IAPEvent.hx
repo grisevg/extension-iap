@@ -6,8 +6,8 @@ import flash.events.Event;
 
 
 class IAPEvent extends Event {
-	
-	
+
+
 	public static inline var PURCHASE_INIT = "init";
 	public static inline var PURCHASE_INIT_FAILED = "initFailed";
 	public static inline var PRODUCTS_RESTORED = "purchasesRestored";
@@ -38,8 +38,8 @@ class IAPEvent extends Event {
 	public var downloadVersion:String;
 	
 	public var purchase:Purchase;
-	
-	
+
+	public var errorCode:Int = -1;
 	
 	public function new (type:String, productID:String = "", ?productsData:Array<IAProduct>, ?invalidProductIDs:Array<String>, ?transactionID:String) {
 		
