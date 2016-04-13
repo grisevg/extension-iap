@@ -8,8 +8,6 @@ import haxe.Json;
 
 import openfl.utils.JNI;
 
-using Reflect;
-
 /**
  * Provides convenience methods and properties for in-app purchases (Android & iOS).
  * The methods and properties are static, so there's no need to instantiate an instance,
@@ -74,14 +72,14 @@ using Reflect;
 	 * 		PURCHASE_INIT_FAILED: Fired when the initialization failed
 	 */
 
-	public static function initialize (publicKey:String = ""):Void {
+	public static function initialize (publicKey:String):Void {
 
 		if (funcInit == null) {
 			funcInit = JNI.createStaticMethod ("org/haxe/extension/iap/InAppPurchase", "initialize", "(Ljava/lang/String;Lorg/haxe/lime/HaxeObject;)V");
 		}
 
 		if (inventory == null) inventory = new Inventory (null);
-		funcInit (publicKey, new IAPHandler ());
+		funcInit(publicKey, new IAPHandler ());
 	}
 
 	/**
@@ -252,125 +250,97 @@ private class IAPHandler {
 	public static var lastPurchaseRequest:String = "";
 	public static var androidAvailable:Bool = true;
 
-
 	public function new () { }
 
-
-	public function onFailedConsume (jsonResponse:String):Void {
-
-		IAP.dispatcher.dispatchEvent (parseResultAndPurchase (IAPEvent.PURCHASE_CONSUME_FAILURE, Json.parse (jsonResponse)));
-
+	public function onFailedConsume(jsonResponse:String):Void {
+		IAP.dispatcher.dispatchEvent(parseResultAndPurchase(IAPEvent.PURCHASE_CONSUME_FAILURE, Json.parse(jsonResponse)));
 	}
 
-
-	public function onConsume (jsonResponse:String):Void {
-
-		IAP.dispatcher.dispatchEvent (parseResultAndPurchase (IAPEvent.PURCHASE_CONSUME_SUCCESS, Json.parse (jsonResponse)));
-
+	public function onConsume(jsonResponse:String):Void {
+		IAP.dispatcher.dispatchEvent(parseResultAndPurchase(IAPEvent.PURCHASE_CONSUME_SUCCESS, Json.parse(jsonResponse)));
 	}
 
-
-	public function onCanceledPurchase (jsonResponse:String):Void {
-
-		IAP.dispatcher.dispatchEvent (parseResultAndPurchase (IAPEvent.PURCHASE_CANCEL, Json.parse (jsonResponse)));
-
+	public function onCanceledPurchase(jsonResponse:String):Void {
+		IAP.dispatcher.dispatchEvent(parseResultAndPurchase(IAPEvent.PURCHASE_CANCEL, Json.parse(jsonResponse)));
 	}
 
-
-	public function onFailedPurchase (jsonResponse:String):Void {
-
-		IAP.dispatcher.dispatchEvent (parseResultAndPurchase (IAPEvent.PURCHASE_FAILURE, Json.parse (jsonResponse)));
-
+	public function onFailedPurchase(jsonResponse:String):Void {
+		IAP.dispatcher.dispatchEvent(parseResultAndPurchase(IAPEvent.PURCHASE_FAILURE, Json.parse(jsonResponse)));
 	}
-
 
 	public function onPurchase (jsonResponse:String):Void {
-
-		IAP.dispatcher.dispatchEvent (parseResultAndPurchase (IAPEvent.PURCHASE_SUCCESS, Json.parse (jsonResponse)));
-
+		IAP.dispatcher.dispatchEvent(parseResultAndPurchase(IAPEvent.PURCHASE_SUCCESS, Json.parse(jsonResponse)));
 	}
 
-
-	public function onQueryInventoryFailed (jsonResponse:String):Void {
+	public function onQueryInventoryFailed(jsonResponse:String):Void {
 
 		androidAvailable = false;
-		IAP.dispatcher.dispatchEvent (parseResult (IAPEvent.PURCHASE_QUERY_INVENTORY_FAILED, Json.parse (jsonResponse)));
-
+		IAP.dispatcher.dispatchEvent(parseResult(IAPEvent.PURCHASE_QUERY_INVENTORY_FAILED,Json.parse(jsonResponse)));
 	}
-
 
 	public function onQueryInventoryComplete (jsonResponse:String):Void {
+		var dynamicResponse:Dynamic = Json.parse(jsonResponse);
+		var event:IAPEvent = parseResult(IAPEvent.PURCHASE_QUERY_INVENTORY_COMPLETE, dynamicResponse);
 
-		var dynamicResponse:Dynamic = Json.parse (jsonResponse);
-		var event:IAPEvent = parseResult (IAPEvent.PURCHASE_QUERY_INVENTORY_COMPLETE, dynamicResponse);
-
-		var dynamicInventory = dynamicResponse.field ("inventory");
-		IAP.inventory = new Inventory (dynamicInventory);
+		var dynamicInventory = Reflect.field(dynamicResponse, "inventory");
+		IAP.inventory = new Inventory(dynamicInventory);
 
 		event.productsData = new Array<IAProduct>();
-		var dynamicDescriptions:Array<Dynamic> = dynamicInventory.field ("descriptions");
+		var dynamicDescriptions:Array<Dynamic> = Reflect.field(dynamicInventory, "descriptions");
 		if (dynamicDescriptions != null) {
 			for (dynamicPurchase in dynamicDescriptions) {
-				event.productsData.push (parseProduct (dynamicPurchase.field ("value")));
+				event.productsData.push(parseProduct (Reflect.field(dynamicPurchase, "value")));
 			}
 		}
-
-		IAP.dispatcher.dispatchEvent (event);
+		IAP.dispatcher.dispatchEvent(event);
 		androidAvailable = true;
-
 	}
-
 
 	public function onStarted (responseStatus:String):Void {
-
 		if (responseStatus == "Success") {
 			androidAvailable = true;
-			IAP.dispatcher.dispatchEvent (new IAPEvent (IAPEvent.PURCHASE_INIT));
+			var event = new IAPEvent (IAPEvent.PURCHASE_INIT);
+			event.errorCode = 0;
+			IAP.dispatcher.dispatchEvent(event);
 		} else {
 			androidAvailable = false;
-			IAP.dispatcher.dispatchEvent (new IAPEvent (IAPEvent.PURCHASE_INIT_FAILED));
+			IAP.dispatcher.dispatchEvent(new IAPEvent (IAPEvent.PURCHASE_INIT_FAILED));
 		}
-
 	}
 
-	private static function parseResult (type:String, dynamicResponse:Dynamic):IAPEvent {
-
-		if (dynamicResponse.field ("result") == null) return null;
+	private static function parseResult(type:String, dynamicResponse:Dynamic):IAPEvent {
+		if (Reflect.field(dynamicResponse, "result") == null) return null;
 		var event = new IAPEvent (type);
-		var dynamicResult = dynamicResponse.field ("result");
-		event.errorCode = Std.parseInt (dynamicResult.field ("response"));
-		event.message = dynamicResult.field ("message");
+		var dynamicResult = Reflect.field(dynamicResponse, "result");
+		event.errorCode = Std.parseInt(Reflect.field(dynamicResult, "response"));
+		event.message = Reflect.field(dynamicResult, "message");
 		return event;
-
 	}
 
-	private static function parseResultAndPurchase (type:String, dynamicResponse:Dynamic):IAPEvent {
-
-		var event = parseResult (type, dynamicResponse);
-		if (dynamicResponse.field ("product") == null) {
+	private static function parseResultAndPurchase(type:String, dynamicResponse:Dynamic):IAPEvent {
+		var event = parseResult(type, dynamicResponse);
+		if (Reflect.field(dynamicResponse, "product") == null) {
 			event.purchase = new Purchase (
-				dynamicResponse.field ("product"),
-				dynamicResponse.field ("type"),
-				dynamicResponse.field ("signature")
+				Reflect.field(dynamicResponse, "product"),
+				Reflect.field(dynamicResponse, "type"),
+				Reflect.field(dynamicResponse, "signature")
 			);
 		}
 		if (event.purchase != null) event.productID = event.purchase.productID;
 		return event;
 	}
 
-	private static function parseProduct (dynamicProduct:Dynamic):IAProduct {
-
-		if (dynamicProduct.field("productId") == null) return null;
-		var prod:IAProduct = { productID: dynamicProduct.field ("productId") };
-		prod.type = dynamicProduct.field ("type");
-		prod.localizedPrice = dynamicProduct.field ("price");
-		prod.priceAmountMicros = dynamicProduct.field ("price_amount_micros");
+	private static function parseProduct(dynamicProduct:Dynamic):IAProduct {
+		if (Reflect.field(dynamicProduct, "productId") == null) return null;
+		var prod:IAProduct = { productID: Reflect.field(dynamicProduct, "productId") };
+		prod.type = Reflect.field(dynamicProduct, "type");
+		prod.localizedPrice = Reflect.field(dynamicProduct, "price");
+		prod.priceAmountMicros = Reflect.field(dynamicProduct, "price_amount_micros");
 		prod.price = prod.priceAmountMicros / 1000 / 1000;
-		prod.priceCurrencyCode = dynamicProduct.field ("price_currency_code");
-		prod.localizedTitle = dynamicProduct.field ("title");
-		prod.localizedDescription = dynamicProduct.field ("description");
+		prod.priceCurrencyCode = Reflect.field(dynamicProduct, "price_currency_code");
+		prod.localizedTitle = Reflect.field(dynamicProduct, "title");
+		prod.localizedDescription = Reflect.field(dynamicProduct, "description");
 		return prod;
-
 	}
 
 }

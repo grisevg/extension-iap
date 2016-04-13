@@ -14,13 +14,18 @@ public class InAppPurchase extends Extension {
 	private static HaxeObject callback = null;
 	private static IabHelper inAppPurchaseHelper;
 	private static IInAppBillingService service = null;
-	private static String publicKey = "";
 
 	public static void buy(final String productID, final String devPayload) {
 		// IabHelper.launchPurchaseFlow() must be called from the main activity's UI thread
 		Extension.mainActivity.runOnUiThread(new Runnable() {
 			public void run() {
-				InAppPurchase.inAppPurchaseHelper.launchPurchaseFlow(Extension.mainActivity, productID, 1001, mPurchaseFinishedListener, devPayload);
+				InAppPurchase.inAppPurchaseHelper.launchPurchaseFlow(
+						Extension.mainActivity,
+						productID,
+						1001,
+						mPurchaseFinishedListener,
+						devPayload
+				);
 			}
 		});
 	}
@@ -54,16 +59,15 @@ public class InAppPurchase extends Extension {
 				try {
 					InAppPurchase.inAppPurchaseHelper.queryInventoryAsync(querySkuDetails, moreSkus, mGotInventoryListener);
 				} catch (Exception e) {
-					Log.d("IAP", e.getMessage());
+					Log.wtf("IAP", e.getMessage());
 				}
 			}
 		});
 	}
 
 	public static void initialize(String publicKey, HaxeObject callback) {
-		Log.i("IAP", "Initializing billing service");
+		Log.d("IAP", "Initializing billing service");
 
-		InAppPurchase.publicKey = publicKey;
 		InAppPurchase.callback = callback;
 
 		if (InAppPurchase.inAppPurchaseHelper != null) {
@@ -76,6 +80,7 @@ public class InAppPurchase extends Extension {
 				Extension.callbackHandler.post(new Runnable() {
 					@Override
 					public void run() {
+						Log.wtf("IAP", result.toJsonString());
 						InAppPurchase.callback.call("onStarted", new Object[]{(result.isSuccess()) ? "Success" : "Failure"});
 					}
 				});
@@ -104,10 +109,10 @@ public class InAppPurchase extends Extension {
 
 	static String resultAndPurchaseToJson(IabResult result, Purchase purchase) {
 		return "{" +
-				"\"result\":" + result.toJsonString() +
-				"\"product\":" + ((purchase != null) ? purchase.getOriginalJson() : "null") +
-				"\"type\":" + ((purchase != null) ? purchase.getItemType() : "null") +
-				"\"signature\":" + ((purchase != null) ? purchase.getSignature() : "null") +
+				"  \"result\":" + result.toJsonString() +
+				", \"product\":" + ((purchase != null) ? purchase.getOriginalJson() : "null") +
+				", \"type\":" + ((purchase != null) ? '"' + purchase.getItemType() + '"' : "null") +
+				", \"signature\":" + ((purchase != null) ? '"' + purchase.getSignature() + '"' : "null") +
 				"}";
 	}
 
@@ -142,7 +147,7 @@ public class InAppPurchase extends Extension {
 						target = "onFailedPurchase";
 					}
 					String json = resultAndPurchaseToJson(result, purchase);
-					Log.d("IAP", "purchase finished: " + json);
+					Log.d("IAP", "purchase finished: '" + json+ "'");
 					InAppPurchase.callback.call(target, new Object[]{json});
 				}
 			});
